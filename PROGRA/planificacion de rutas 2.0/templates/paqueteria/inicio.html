@@ -1,0 +1,60 @@
+{% extends 'paqueteria/base.html' %}
+
+{% block title %}Inicio - Sistema de Paquetería{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 text-center mb-5">
+        <h1 class="display-4">Bienvenido a nuestro Sistema de Paquetería</h1>
+        <p class="lead">Tu solución confiable para envíos y seguimiento de paquetes</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <img src="https://cdn-icons-png.flaticon.com/512/1048/1048314.png" class="card-img-top" alt="Envíos" style="height: 60px; width: 60px; margin: 20px auto 0;">
+            <div class="card-body">
+                <h5 class="card-title">Realizar Envío</h5>
+                <p class="card-text">Realiza envíos de manera rápida y segura. Calcula costos basados en el peso y visualiza la mejor ruta.</p>
+                <a href="{% url 'realizar_envio' %}" class="btn btn-primary">Realizar Envío</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <img src="https://cdn-icons-png.flaticon.com/512/1048/1048314.png" class="card-img-top" alt="Historial" style="height: 60px; width: 60px; margin: 20px auto 0;">
+            <div class="card-body">
+                <h5 class="card-title">Historial de Envíos</h5>
+                <p class="card-text">Accede al historial completo de tus envíos y visualiza las rutas realizadas.</p>
+                <a href="{% url 'historial_rutas' %}" class="btn btn-primary">Ver Historial</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title">¿Por qué elegirnos?</h3>
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <h5>✓ Envíos Seguros</h5>
+                        <p>Garantizamos la seguridad de tus paquetes en todo momento.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>✓ Rutas Optimizadas</h5>
+                        <p>Utilizamos algoritmos avanzados para encontrar la mejor ruta.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5>✓ Precios Competitivos</h5>
+                        <p>Ofrecemos los mejores precios del mercado, $55 por libra.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

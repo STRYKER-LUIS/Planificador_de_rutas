@@ -1,0 +1,152 @@
+{% extends 'paqueteria/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Realizar Envío - Sistema de Paquetería{% endblock %}
+
+{% block extra_css %}
+<style>
+    #map {
+        height: 400px;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .form-container {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 5px;
+    }
+    .route-info {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <h2>Realizar Nuevo Envío</h2>
+        <p class="lead">Complete el formulario y seleccione los puntos en el mapa</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="form-container">
+            <form method="post" id="envioForm">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="remitente" class="form-label">Nombre del Remitente</label>
+                    <input type="text" class="form-control" id="remitente" name="remitente" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="num_paquetes" class="form-label">Número de Paquetes</label>
+                    <input type="number" class="form-control" id="num_paquetes" name="num_paquetes" min="1" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="peso_total" class="form-label">Peso Total (libras)</label>
+                    <input type="number" class="form-control" id="peso_total" name="peso_total" step="0.1" min="0.1" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="costo" class="form-label">Costo Estimado</label>
+                    <input type="text" class="form-control" id="costo" readonly>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="punto_inicio" class="form-label">Punto de Inicio</label>
+                    <input type="text" class="form-control" id="punto_inicio" name="punto_inicio" readonly required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="punto_fin" class="form-label">Punto de Destino</label>
+                    <input type="text" class="form-control" id="punto_fin" name="punto_fin" readonly required>
+                </div>
+                
+                <input type="hidden" id="coordenadas_inicio" name="coordenadas_inicio">
+                <input type="hidden" id="coordenadas_fin" name="coordenadas_fin">
+                
+                <button type="submit" class="btn btn-primary">Realizar Envío</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div id="map"></div>
+        <div class="alert alert-info">
+            <strong>Instrucciones:</strong>
+            <ol>
+                <li>Haga clic en el mapa para marcar el punto de inicio</li>
+                <li>Haga clic nuevamente para marcar el punto de destino</li>
+                <li>Complete el formulario con los detalles del envío</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Inicializar el mapa
+    var mapa = L.map('map').setView([14.6349, -90.5069], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(mapa);
+
+    var marcadorInicio = null;
+    var marcadorFin = null;
+    var lineaRuta = null;
+    var coordenadasInicio = null;
+    var coordenadasFin = null;
+
+    // Función para calcular el costo
+    function calcularCosto() {
+        var peso = parseFloat(document.getElementById('peso_total').value) || 0;
+        var costo = peso * 55;
+        document.getElementById('costo').value = '$' + costo.toFixed(2);
+    }
+
+    // Evento para calcular costo cuando cambia el peso
+    document.getElementById('peso_total').addEventListener('input', calcularCosto);
+
+    // Evento para el clic en el mapa
+    mapa.on('click', function(e) {
+        if (!marcadorInicio) {
+            // Marcar punto de inicio
+            marcadorInicio = L.marker(e.latlng).addTo(mapa);
+            coordenadasInicio = e.latlng;
+            document.getElementById('punto_inicio').value = e.latlng.lat.toFixed(6) + ', ' + e.latlng.lng.toFixed(6);
+            document.getElementById('coordenadas_inicio').value = JSON.stringify([e.latlng.lat, e.latlng.lng]);
+        } else if (!marcadorFin) {
+            // Marcar punto de destino
+            marcadorFin = L.marker(e.latlng).addTo(mapa);
+            coordenadasFin = e.latlng;
+            document.getElementById('punto_fin').value = e.latlng.lat.toFixed(6) + ', ' + e.latlng.lng.toFixed(6);
+            document.getElementById('coordenadas_fin').value = JSON.stringify([e.latlng.lat, e.latlng.lng]);
+            
+            // Dibujar línea entre puntos
+            if (lineaRuta) {
+                mapa.removeLayer(lineaRuta);
+            }
+            lineaRuta = L.polyline([coordenadasInicio, coordenadasFin], {
+                color: 'red',
+                weight: 3,
+                opacity: 0.7
+            }).addTo(mapa);
+        }
+    });
+
+    // Evento para el formulario
+    document.getElementById('envioForm').addEventListener('submit', function(e) {
+        if (!coordenadasInicio || !coordenadasFin) {
+            e.preventDefault();
+            alert('Por favor, seleccione los puntos de inicio y destino en el mapa.');
+        }
+    });
+</script>
+{% endblock %} 

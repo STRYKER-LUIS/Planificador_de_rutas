@@ -1,0 +1,57 @@
+{% extends 'paqueteria/base.html' %}
+
+{% block title %}Historial de Envíos - Sistema de Paquetería{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <h2>Historial de Envíos</h2>
+        <p class="lead">Visualice todas las rutas realizadas anteriormente</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        {% if envios %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Remitente</th>
+                            <th>Número de Paquetes</th>
+                            <th>Peso Total</th>
+                            <th>Costo</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for envio in envios %}
+                        <tr>
+                            <td>{{ envio.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                            <td>{{ envio.remitente }}</td>
+                            <td>{{ envio.num_paquetes }}</td>
+                            <td>{{ envio.peso_total }} lbs</td>
+                            <td>${{ envio.costo }}</td>
+                            <td>
+                                <span class="badge {% if envio.estado == 'pendiente' %}bg-warning{% elif envio.estado == 'completado' %}bg-success{% else %}bg-info{% endif %}">
+                                    {{ envio.get_estado_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'detalle_ruta' envio.id %}" class="btn btn-sm btn-primary">Ver Detalles</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No hay envíos registrados aún.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

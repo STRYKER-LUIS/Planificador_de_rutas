@@ -1,0 +1,209 @@
+{% extends 'paqueteria/base.html' %}
+
+{% block title %}Detalle de Envío - Sistema de Paquetería{% endblock %}
+
+{% block extra_css %}
+<style>
+    #map {
+        height: 500px;
+        width: 100%;
+        margin-bottom: 20px;
+    }
+    .info-card {
+        background-color: #f9f8fa;
+        padding: 20px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+    }
+    .route-info {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #e9ecef;
+        border-radius: 5px;
+    }
+    .route-line {
+        stroke: #3388ff;
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <h2>Detalle de Envío</h2>
+        <p class="lead">Información del envío y ruta optimizada</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="info-card">
+            <h4>Información del Envío</h4>
+            <dl class="row">
+                <dt class="col-sm-4">Remitente:</dt>
+                <dd class="col-sm-8">{{ envio.remitente }}</dd>
+
+                <dt class="col-sm-4">Fecha:</dt>
+                <dd class="col-sm-8">{{ envio.fecha_creacion|date:"d/m/Y H:i" }}</dd>
+
+                <dt class="col-sm-4">Paquetes:</dt>
+                <dd class="col-sm-8">{{ envio.num_paquetes }}</dd>
+
+                <dt class="col-sm-4">Peso Total:</dt>
+                <dd class="col-sm-8">{{ envio.peso_total }} lbs</dd>
+
+                <dt class="col-sm-4">Costo:</dt>
+                <dd class="col-sm-8">${{ envio.costo }}</dd>
+
+                <dt class="col-sm-4">Estado:</dt>
+                <dd class="col-sm-8">
+                    <span class="badge {% if envio.estado == 'pendiente' %}bg-warning{% elif envio.estado == 'completado' %}bg-success{% else %}bg-info{% endif %}">
+                        {{ envio.get_estado_display }}
+                    </span>
+                </dd>
+            </dl>
+        </div>
+
+        <div class="info-card">
+            <h4>Puntos de Ruta</h4>
+            <dl class="row">
+                <dt class="col-sm-4">Inicio:</dt>
+                <dd class="col-sm-8">{{ envio.punto_inicio }}</dd>
+
+                <dt class="col-sm-4">Destino:</dt>
+                <dd class="col-sm-8">{{ envio.punto_fin }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div id="map" 
+             data-ruta-optimizada="{% if envio.ruta_optimizada %}true{% else %}false{% endif %}"
+             data-coordenadas-ruta='{% if envio.ruta_optimizada %}{{ envio.ruta_optimizada.coordenadas|safe }}{% else %}null{% endif %}'>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Obtener configuración del mapa
+    var mapaElement = document.getElementById('map');
+    var RUTA_OPTIMIZADA = mapaElement.dataset.rutaOptimizada === 'true';
+    var COORDENADAS_RUTA = JSON.parse(mapaElement.dataset.coordenadasRuta);
+
+    // Inicializar el mapa
+    var mapa = L.map('map').setView([14.6349, -90.5069], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(mapa);
+
+    // Obtener coordenadas del envío
+    var coordenadasInicio = JSON.parse('{{ envio.coordenadas_inicio|safe }}');
+    var coordenadasFin = JSON.parse('{{ envio.coordenadas_fin|safe }}');
+
+    // Crear marcadores
+    var marcadorInicio = L.marker(coordenadasInicio).addTo(mapa);
+    var marcadorFin = L.marker(coordenadasFin).addTo(mapa);
+
+    // Función para obtener rutas alternativas desde OSRM
+    function obtenerRutasOSRM(inicio, fin) {
+        var url = `https://router.project-osrm.org/route/v1/driving/${inicio[1]},${inicio[0]};${fin[1]},${fin[0]}?overview=full&geometries=geojson&alternatives=true`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.routes && data.routes.length > 0) {
+                    // Ruta principal
+                    var rutaPrincipal = data.routes[0];
+                    var geometriaPrincipal = rutaPrincipal.geometry;
+                    var rutaLinea = L.geoJSON(geometriaPrincipal, {
+                        style: { color: '#3388ff', weight: 5, opacity: 0.7 }
+                    }).addTo(mapa);
+
+                    // Información principal
+                    var distancia = (rutaPrincipal.distance / 1000).toFixed(2);
+                    var duracion = Math.round(rutaPrincipal.duration / 60);
+
+                    var infoRuta = document.createElement('div');
+                    infoRuta.className = 'route-info';
+                    infoRuta.innerHTML = `
+                        <h4>Ruta Seleccionada</h4>
+                        <dl class="row">
+                            <dt class="col-sm-4">Distancia:</dt>
+                            <dd class="col-sm-8">${distancia} km</dd>
+                            <dt class="col-sm-4">Duración estimada:</dt>
+                            <dd class="col-sm-8">${duracion} minutos</dd>
+                        </dl>
+                    `;
+                    document.querySelector('.col-md-4').appendChild(infoRuta);
+
+                    // Ruta sugerida (si existe y es significativamente diferente)
+                    var hayAlternativa = false;
+                    if (data.routes.length > 1) {
+                        var rutaSugerida = data.routes[1];
+                        // Compara la distancia y duración con la principal
+                        var diferenciaDistancia = Math.abs(rutaSugerida.distance - rutaPrincipal.distance);
+                        var diferenciaDuracion = Math.abs(rutaSugerida.duration - rutaPrincipal.duration);
+
+                        // Solo mostrar si la diferencia es mayor a 100 metros o 1 minuto
+                        if (diferenciaDistancia > 100 || diferenciaDuracion > 60) {
+                            hayAlternativa = true;
+                            var geometriaSugerida = rutaSugerida.geometry;
+                            var sugeridaLinea = L.geoJSON(geometriaSugerida, {
+                                style: { color: 'green', weight: 4, opacity: 0.7, dashArray: '8,8' }
+                            }).addTo(mapa);
+
+                            // Información sugerida
+                            var distanciaSug = (rutaSugerida.distance / 1000).toFixed(2);
+                            var duracionSug = Math.round(rutaSugerida.duration / 60);
+
+                            var infoSugerida = document.createElement('div');
+                            infoSugerida.className = 'route-info';
+                            infoSugerida.innerHTML = `
+                                <h4>Ruta Sugerida</h4>
+                                <dl class="row">
+                                    <dt class="col-sm-4">Distancia:</dt>
+                                    <dd class="col-sm-8">${distanciaSug} km</dd>
+                                    <dt class="col-sm-4">Duración estimada:</dt>
+                                    <dd class="col-sm-8">${duracionSug} minutos</dd>
+                                </dl>
+                            `;
+                            document.querySelector('.col-md-4').appendChild(infoSugerida);
+                        }
+                    }
+                    // Si no hay alternativa significativa, mostrar mensaje
+                    if (!hayAlternativa) {
+                        var mensaje = document.createElement('div');
+                        mensaje.className = 'alert alert-info mt-3';
+                        mensaje.innerHTML = 'No se encontró una ruta alternativa significativamente diferente.';
+                        document.querySelector('.col-md-4').appendChild(mensaje);
+                    }
+
+                    // Ajustar vista
+                    mapa.fitBounds(rutaLinea.getBounds());
+                }
+            })
+            .catch(error => {
+                console.error('Error al obtener la ruta:', error);
+                // Si falla OSRM, mostrar línea directa
+                var lineaRuta = L.polyline([coordenadasInicio, coordenadasFin], {
+                    color: 'red',
+                    weight: 3,
+                    opacity: 0.7
+                }).addTo(mapa);
+                mapa.fitBounds(lineaRuta.getBounds());
+            });
+    }
+
+    // Obtener rutas alternativas
+    obtenerRutasOSRM(coordenadasInicio, coordenadasFin);
+
+    // Agregar popups a los marcadores
+    marcadorInicio.bindPopup('Punto de Inicio');
+    marcadorFin.bindPopup('Punto de Destino');
+</script>
+{% endblock %} 
